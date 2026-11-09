@@ -6,7 +6,7 @@ using namespace std;
 struct Key {
 	int condition;
 	int arrival;
-	int dateOfBirth;
+	string dateOfBirth;
 
 	bool operator<(const Key& other) const {
 		if (condition != other.condition) {
