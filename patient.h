@@ -20,7 +20,7 @@ private:
 	bool isCritical; // true if patient is critical and needs immediate attention
     
 public:
-	Patient(const std::string& name, const std::string& birthday, int age, int condition, int arrivalTime, int criticalTime) :
+	Patient(const std::string& name, const std::string& birthday, int age, int condition, int arrivalTime, int criticalTime):
 		name(name), birthday(birthday), age(age), condition(condition), arrivalTime(arrivalTime), criticalTime(criticalTime), treatmentTime(0), startTime(-1), dischargeTime(-1), isCritical(false) {
 	}
 	std::string getName() const { return name; }
