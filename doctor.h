@@ -1,4 +1,4 @@
-#indef DOCTOR_H
+#ifndef DOCTOR_H
 #define DOCTOR_H
 
 #include <string>
@@ -13,7 +13,6 @@ class Doctor {
 	// Doctors have shifts, the same time every day
 	int shift; // This is an 8 hour shift, so shift number is 1, 2, or 3
 	Patient* currentPatient;
-}
 
 public:
 	Doctor(const std::string& name, const std::string& dob, int skill, int shift)
@@ -32,7 +31,7 @@ public:
 
 	void hourOfTreatment() {
 		if (!currentPatient) return;
-		currentPatient->setCondition(currentPatient->getCondition() - skill) :
+		currentPatient->setCondition(currentPatient->getCondition() - skill);
 			currentPatient->setTreatmentTime(currentPatient->getTreatmentTime() + 1);
 	}
 
