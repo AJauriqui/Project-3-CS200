@@ -51,7 +51,7 @@ public:
     void setIsCritical(bool critical) {
         isCritical = critical;
     }
-    void updateCondition(int currentTime) {
+    bool updateCondition(int currentTime) {
 		setCondition(condition + 1); // condition worsens by 1 each hour
 		if (!isCritical && (currentTime - arrivalTime) >= criticalTime) {
 			isCritical = true;
