@@ -1,204 +1,240 @@
 #ifndef BTREE_H
 #define BTREE_H
 
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <iostream>
 #include <string>
-using namespace std;
+#include <vector>
 
-template <typename T>
-class BTreeNode {
-public:
-    int n;//number of keys
-    bool leaf;//true if node is a leaf
-    string* keys;//DOB keys for patients or doctors
-    T** records;//patient or doctor records
-    BTreeNode<T>** children;//children pointers
-    
-    /*Creates a new B-Tree node, input is t, a minimum degree of the b tree, and is leaf, whether node is a leaf
-    Output is a new node with allocated arrays
-    */
-    BTreeNode(int t, bool isleaf);
-    
-};
-template <typename T>
+/*A B-tree that stores elements of type T ordered by the comparator Compare.
+Compare(x, y) must return true if x should come BEFORE y (e.g. PatientPrio, DoctorPrio).
+The tree owns its nodes but not the objects T points to (T is normally Patient* or Doctor*).
+Elements that compare equal are all kept (multiset behaviour), so no patient or doctor is ever silently dropped.
+The "first" element is the one that comes first according to Compare, i.e. the highest priority.*/
+template <typename T, typename Compare = std::less<T> >
 class BTree {
 private:
-    BTreeNode<T>* root;//pointer to the root node
-    int t; // Minimum degree
-    /*Splits full child node into two nodes and moves the middle key and record into the parent. 
-    Input is x, a pointer to the parent node, and i, index of the child to split, there is no output*/
-    void splitChild(BTreeNode<T>* x, int i);
-    /*Inserts a record into a non-full node.
-    Input is x, a pointer to the node to insert into, dob, the key to insert, and record, the record to insert.
-    Output is nothing.
-    */
-    void insertNonFull(BTreeNode<T>* x, const string& dob, T* record);
-    /*Recursively searches the B-Tree for a DOB, input is x, a pointer to the current node, and dob, the key to search for.
-    Output is a pointer to the record if found, otherwise nullptr.
-    */
-    T* searchNode(BTreeNode<T>* x, const string& dob);
-    /*Recursively deletes all nodes in the B-Tree.
-    Input is x, a pointer to the current node.
-    Output is nothing.
-    */
-    void deleteTree(BTreeNode<T>* x);//deletes all nodes in the tree
-public:
-    /*Creates an empty B-Tree, input is t, a minimum degree of the b tree.
-    Output is a empty B-Tree.
-    */
-    BTree(int t);
-    /*Destructor for the B-Tree.
-    No input, output is nothing, frees all allocated B-Tree nodes and arrays.
-    */
-    ~BTree();
+    struct Node {
+        bool leaf;                  // true if node has no children
+        std::vector<T> keys;        // sorted elements (at most 2t-1)
+        std::vector<Node*> children;// keys.size()+1 children when not a leaf
+        explicit Node(bool isLeaf) : leaf(isLeaf) {}
+    };
 
-    /*Inserts a record into the B-Tree, duplicates are ignored.
-    Input is dob, the key to insert, and record, pointer to the patient or doctor.
-    Output is nothing.
-    */
-    void insert(const string& dob, T* record);
-    /*Searches the B-Tree for a record.
-    Input is dob, the key to search for.
-    Output is a pointer to the record if found, otherwise nullptr.
-    */
-    T* search(const string& dob);
-};
-template <typename T>
-BTreeNode<T>::BTreeNode(int t, bool isleaf) {
-    n=0;//new node starts with no keys
-    leaf=isleaf;//sets whether node is a leaf
+    Node* root;          // root node, nullptr when the tree is empty
+    int t;               // minimum degree: every non-root node has between t-1 and 2t-1 keys
+    std::size_t count;   // total number of elements stored
+    Compare comp;        // ordering of the elements
 
-    keys=new string[2*t-1];//allocates arrays based on degree t
-    records=new T*[2*t-1];
-    children=new BTreeNode<T>*[2*t];
+    BTree(const BTree&);            // copying is disabled because the tree owns raw pointers
+    BTree& operator=(const BTree&);
 
-    for(int i=0;i<2*t-1;i++){//initializes record pointers to nullptr
-        records[i]=nullptr;
-    }
-    for(int i=0;i<2*t;i++){//initializes child pointers to nullptr
-        children[i]=nullptr;
-    }
-}
-
-template <typename T>
-BTree<T>::BTree(int t) {
-    root = nullptr;//tree starts empty
-    this->t = t;//sets min degree of the B-Tree
-}
-template <typename T>
-T* BTree<T>::searchNode(BTreeNode<T>* x, const string& dob) {
-    if(x==nullptr){//return nullptr if node doesn't exist
-        return nullptr;
-    }
-    int i = 0;
-    while (i < x->n && dob > x->keys[i]) {//find the first key greater than or equal to dob
-        i++;
-    }
-    if (i < x->n && dob == x->keys[i]) {//return the record if dob matches the key
-        return x->records[i];
-    }
-    if (x->leaf) {//if node is a leaf, the dob isnt in the tree
-        return nullptr;
-    }
-    return searchNode(x->children[i], dob);//searches the appropriate child
-}
-
-template <typename T>
-T* BTree<T>::search(const string& dob) {
-    return searchNode(root, dob);//begin search from root of the B-Tree
-}
-
-template <typename T>
-void BTree<T>::splitChild(BTreeNode<T>* x, int i) {
-    BTreeNode<T>* y=x->children[i];//gets the child node that needs to be split
-    BTreeNode<T>* z = new BTreeNode<T>(t,y->leaf);//creates a new node with the same leaf status as y
-    z->n = t - 1;//new node will contain the last t-1 keys
-    for(int j=0;j<t-1;j++){//copies last t-1 keys and records from y to z
-        z->keys[j]=y->keys[j+t];
-        z->records[j]=y->records[j+t];
-    }
-    if(!y->leaf){//copies last t children from y to z if y is not a leaf
-        for(int j=0;j<t;j++){
-            z->children[j]=y->children[j+t];
+    /*Splits the full child x->children[i] into two nodes and moves its middle key up into x.
+    Input is x, a non-full parent node, and i, the index of the full child. No output.*/
+    void splitChild(Node* x, int i) {
+        Node* y = x->children[i];
+        Node* z = new Node(y->leaf);
+        T middle = y->keys[t - 1];
+        z->keys.assign(y->keys.begin() + t, y->keys.end());     // z takes the last t-1 keys
+        if (!y->leaf) {
+            z->children.assign(y->children.begin() + t, y->children.end()); // and the last t children
+            y->children.erase(y->children.begin() + t, y->children.end());
         }
+        y->keys.erase(y->keys.begin() + (t - 1), y->keys.end()); // y keeps the first t-1 keys
+        x->keys.insert(x->keys.begin() + i, middle);
+        x->children.insert(x->children.begin() + (i + 1), z);
     }
-    y->n=t-1;//og child keeps the first t-1 keys
-    for(int j=x->n;j>=i+1;j--){//shifts children of x to make room for z
-        x->children[j+1]=x->children[j];
-    }
-    x->children[i+1]=z;//places the new node right after y
-    for(int j=x->n-1;j>=i;j--){//shifts keys and records of x to make room for y's middle key
-        x->keys[j+1]=x->keys[j];
-        x->records[j+1]=x->records[j];
-    }
-    x->keys[i]=y->keys[t-1];//move middle key from y to x
-    x->records[i]=y->records[t-1];
-    x->n++;//parent now has additional key
-}
 
-template <typename T>
-void BTree<T>::insertNonFull(BTreeNode<T>* x, const string& dob, T* record) {
-    int i = x->n - 1;//starts at the last key in the current node
-    if (x->leaf) {
-        while (i >= 0 && dob < x->keys[i]) {//shifts larger keys and records to the right
-            x->keys[i + 1] = x->keys[i];
-            x->records[i + 1] = x->records[i];
-            i--;
+    /*Inserts value into the subtree rooted at x, which must not be full.
+    Input is x, the node to insert into, and value, the element to insert. No output.*/
+    void insertNonFull(Node* x, const T& value) {
+        // upper_bound puts equal elements after existing ones
+        std::size_t i = std::upper_bound(x->keys.begin(), x->keys.end(), value, comp) - x->keys.begin();
+        if (x->leaf) {
+            x->keys.insert(x->keys.begin() + i, value);
+            return;
         }
-        x->keys[i + 1] = dob;//inserts new key and record
-        x->records[i + 1] = record;
-        x->n++;//increases number of keys in the node
-    } else {//find child where new key belongs
-        while (i >= 0 && dob < x->keys[i]) {
-            i--;
+        if ((int)x->children[i]->keys.size() == 2 * t - 1) {
+            splitChild(x, (int)i);
+            if (!comp(value, x->keys[i])) ++i; // value belongs to the right half
         }
-        i++;
-        if (x->children[i]->n == 2 * t - 1) {//split child if its full
-            splitChild(x, i);
-            if (dob > x->keys[i]) {//determine which child should get the new dob
-                i++;
+        insertNonFull(x->children[i], value);
+    }
+
+    /*Makes sure x->children[0] has at least t keys so a key can be removed from it safely.
+    Borrows a key through x from the right sibling, or merges with the sibling if it cannot spare one.
+    Input is x, a non-leaf node. No output.*/
+    void fillFirstChild(Node* x) {
+        Node* c = x->children[0];
+        Node* sib = x->children[1];
+        if ((int)sib->keys.size() >= t) {      // borrow from right sibling
+            c->keys.push_back(x->keys[0]);
+            x->keys[0] = sib->keys.front();
+            sib->keys.erase(sib->keys.begin());
+            if (!c->leaf) {
+                c->children.push_back(sib->children.front());
+                sib->children.erase(sib->children.begin());
             }
         }
-        insertNonFull(x->children[i], dob, record);//insert into appropriate child
-    }
-}
-
-template <typename T>
-void BTree<T>::insert(const string& dob, T* record) {
-    if(search(dob)!=nullptr){//dont insert duplicate dobs
-        return;
-    }
-    if(root==nullptr){//if tree is empty create new root
-        root=new BTreeNode<T>(t,true);
-    }
-    if(root->n==2*t-1){//if root is full create new root and split
-        BTreeNode<T>* s=new BTreeNode<T>(t,false);
-        s->children[0]=root;//make old root the first child of the new root
-        splitChild(s,0);//split the full child and move its middle key up
-        root=s;//update root pointer
-    }
-    insertNonFull(root,dob,record);//insert new record into node that isn't full
-
-}
-
-template <typename T>
-void BTree<T>::deleteTree(BTreeNode<T>* x) {
-    if (x == nullptr) {//stop if node doesn't exist
-        return;
-    }
-    if(!x->leaf){//recursively delete children if not a leaf
-        for(int i=0;i<=x->n;i++){
-            deleteTree(x->children[i]);
+        else {                               // merge c + separator + sib
+            c->keys.push_back(x->keys[0]);
+            c->keys.insert(c->keys.end(), sib->keys.begin(), sib->keys.end());
+            if (!c->leaf) c->children.insert(c->children.end(), sib->children.begin(), sib->children.end());
+            x->keys.erase(x->keys.begin());
+            x->children.erase(x->children.begin() + 1);
+            delete sib;
         }
     }
-    //frees memory allocated for the node's arrays
-    delete[] x->keys;
-    delete[] x->records;
-    delete[] x->children;
-    delete x;//delete node itself
-}
 
-template <typename T>
-BTree<T>::~BTree() {
-    deleteTree(root);//free all allocated memory when B-tree is destroyed
-}
+    /*Removes and returns the first element of the subtree rooted at x.
+    x is either the root or has at least t keys. Input is x, output is the removed element.*/
+    T removeFirst(Node* x) {
+        if (x->leaf) {
+            T v = x->keys.front();
+            x->keys.erase(x->keys.begin());
+            return v;
+        }
+        if ((int)x->children[0]->keys.size() < t) fillFirstChild(x);
+        return removeFirst(x->children[0]);
+    }
+
+    /*Adds every element of the subtree rooted at x to out in sorted order. Inputs are x and out, no return.*/
+    void collect(const Node* x, std::vector<T>& out) const {
+        if (!x) return;
+        for (std::size_t i = 0; i < x->keys.size(); ++i) {
+            if (!x->leaf) collect(x->children[i], out);
+            out.push_back(x->keys[i]);
+        }
+        if (!x->leaf) collect(x->children[x->keys.size()], out);
+    }
+
+    /*Recursively frees every node under x. Input is x, no output.*/
+    void destroy(Node* x) {
+        if (!x) return;
+        for (std::size_t i = 0; i < x->children.size(); ++i) destroy(x->children[i]);
+        delete x;
+    }
+
+    template <typename Label>
+    void printNode(std::ostream& os, const Node* x, int depth, Label label) const {
+        os << std::string(depth * 4, ' ') << "[";
+        for (std::size_t i = 0; i < x->keys.size(); ++i) {
+            if (i) os << " | ";
+            os << label(x->keys[i]);
+        }
+        os << "]\n";
+        if (!x->leaf) {
+            for (std::size_t i = 0; i < x->children.size(); ++i) printNode(os, x->children[i], depth + 1, label);
+        }
+    }
+
+    /*Checks the B-tree rules for the subtree at x. lo/hi are the bounding keys from ancestors (or nullptr).
+    leafDepth records the depth of the first leaf seen so all leaves can be compared to it.*/
+    bool check(const Node* x, int depth, int& leafDepth, bool isRoot, const T* lo, const T* hi, std::size_t& seen) const {
+        const int n = (int)x->keys.size();
+        if (n > 2 * t - 1) return false;
+        if (isRoot ? n < 1 : n < t - 1) return false;
+        for (int i = 0; i < n; ++i) {
+            if (i > 0 && comp(x->keys[i], x->keys[i - 1])) return false; // keys must be sorted
+            if (lo && comp(x->keys[i], *lo)) return false;               // key smaller than ancestor bound
+            if (hi && comp(*hi, x->keys[i])) return false;               // key larger than ancestor bound
+        }
+        seen += n;
+        if (x->leaf) {
+            if (!x->children.empty()) return false;
+            if (leafDepth < 0) leafDepth = depth;
+            return leafDepth == depth;                                    // all leaves at same depth
+        }
+        if ((int)x->children.size() != n + 1) return false;
+        for (int i = 0; i <= n; ++i) {
+            const T* childLo = (i == 0) ? lo : &x->keys[i - 1];
+            const T* childHi = (i == n) ? hi : &x->keys[i];
+            if (!check(x->children[i], depth + 1, leafDepth, false, childLo, childHi, seen)) return false;
+        }
+        return true;
+    }
+
+public:
+    /*Creates an empty B-tree. Input is degree, the minimum degree t (at least 2), and optionally a comparator.
+    Output is an empty tree.*/
+    explicit BTree(int degree, Compare c = Compare()) : root(nullptr), t(degree < 2 ? 2 : degree), count(0), comp(c) {}
+
+    /*Frees all nodes. No input or output.*/
+    ~BTree() { destroy(root); }
+
+    /*Inserts value into the tree. Input is value, no output.*/
+    void insert(const T& value) {
+        if (!root) root = new Node(true);
+        if ((int)root->keys.size() == 2 * t - 1) {  // root is full, so the tree grows in height
+            Node* s = new Node(false);
+            s->children.push_back(root);
+            splitChild(s, 0);
+            root = s;
+        }
+        insertNonFull(root, value);
+        ++count;
+    }
+
+    /*Removes the first (highest priority) element. Input is out, which receives the element.
+    Output is true if an element was removed, false if the tree was empty.*/
+    bool popFirst(T& out) {
+        if (!root) return false;
+        out = removeFirst(root);
+        --count;
+        if (root->keys.empty()) {  // root ran out of keys: shrink the tree
+            Node* old = root;
+            root = old->leaf ? nullptr : old->children[0];
+            delete old;
+        }
+        return true;
+    }
+
+    /*Returns all elements in priority order, no input, output is a vector.*/
+    std::vector<T> toVector() const {
+        std::vector<T> out;
+        out.reserve(count);
+        collect(root, out);
+        return out;
+    }
+
+    /*Removes every element (the pointed-to objects are not deleted), no input or output.*/
+    void clear() {
+        destroy(root);
+        root = nullptr;
+        count = 0;
+    }
+
+    /*Returns the number of elements in the tree.*/
+    std::size_t size() const { return count; }
+
+    /*Returns true if the tree has no elements.*/
+    bool empty() const { return count == 0; }
+
+    /*Returns the number of levels in the tree (0 when empty, 1 when only the root exists).*/
+    int height() const {
+        int h = 0;
+        for (const Node* x = root; x; x = x->leaf ? nullptr : x->children[0]) ++h;
+        return h;
+    }
+
+    /*Draws the tree sideways, one node per line, children indented under their parent.
+    Inputs are os, the stream to print to, and label, a function turning one element into a string.*/
+    template <typename Label>
+    void print(std::ostream& os, Label label) const {
+        if (!root) { os << "(empty)\n"; return; }
+        printNode(os, root, 0, label);
+    }
+
+    /*Verifies the B-tree rules: key counts, sorted order, equal leaf depth and element count.
+    Output is true if the tree is valid.*/
+    bool checkInvariants() const {
+        if (!root) return count == 0;
+        int leafDepth = -1;
+        std::size_t seen = 0;
+        return check(root, 0, leafDepth, true, nullptr, nullptr, seen) && seen == count;
+    }
+};
+
 #endif // BTREE_H
