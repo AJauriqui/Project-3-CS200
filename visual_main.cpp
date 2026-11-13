@@ -4,15 +4,7 @@
 #include <string>
 #include <cmath>
 #include "waitingRoom.h"
-
-struct PatientAnimation {
-    std::string patientName;
-    sf::Vector2f startPos;
-    sf::Vector2f targetPos;
-    sf::Vector2f currentPos;
-    float progress; // 0.0 to 1.0
-    bool active;
-};
+#include "visual.h"
 
 int main(int argc, char* argv[]) {
     std::string patientsPath = (argc > 1) ? argv[1] : "patients.csv";
