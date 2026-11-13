@@ -1,0 +1,51 @@
+CXX      = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2
+
+# Headers shared by both programs (so edits trigger a rebuild)
+HEADERS  = waitingRoom.h patient.h doctor.h BTree.h
+
+# Data files and random seed used by "make run" / "make run-visual"
+PATIENTS = patients.csv
+DOCTORS  = doctors.csv
+SEED     = 42
+
+# SFML include/library paths are only needed for the visual build
+SFML_LIBS = -lsfml-graphics -lsfml-window -lsfml-system
+ifeq ($(shell uname), Darwin)
+    ifeq ($(shell test -d /opt/homebrew && echo yes), yes)
+        SFML_FLAGS = -I/opt/homebrew/include
+        SFML_LDFLAGS = -L/opt/homebrew/lib $(SFML_LIBS)
+    else
+        SFML_FLAGS = -I/usr/local/include
+        SFML_LDFLAGS = -L/usr/local/lib $(SFML_LIBS)
+    endif
+else
+    SFML_FLAGS =
+    SFML_LDFLAGS = $(SFML_LIBS)
+endif
+
+CLI_TARGET    = hospital_cli
+VISUAL_TARGET = hospital_sim
+
+# Default: the text-based simulator (no SFML required)
+all: $(CLI_TARGET)
+
+$(CLI_TARGET): main.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) main.cpp -o $@
+
+# Graphical simulator (requires SFML)
+visual: $(VISUAL_TARGET)
+
+$(VISUAL_TARGET): visual_main.cpp visual.h $(HEADERS)
+	$(CXX) $(CXXFLAGS) $(SFML_FLAGS) visual_main.cpp -o $@ $(SFML_LDFLAGS)
+
+run: $(CLI_TARGET)
+	./$(CLI_TARGET) $(PATIENTS) $(DOCTORS) $(SEED)
+
+run-visual: $(VISUAL_TARGET)
+	./$(VISUAL_TARGET) $(PATIENTS) $(DOCTORS) $(SEED)
+
+clean:
+	rm -f $(CLI_TARGET) $(VISUAL_TARGET)
+
+.PHONY: all visual run run-visual clean
