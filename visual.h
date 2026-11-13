@@ -13,5 +13,10 @@ struct PatientAnimation {
     bool active;
 };
 
+class Hospital;
+/*Runs the SFML visualization for the hospital simulation
+Input is reference to the intitalized Hospital object, output displays the simulation window and updates*/
+void runVisualization(Hospital& hospital);
+
 
 #endif // VISUAL_H
