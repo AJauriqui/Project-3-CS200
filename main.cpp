@@ -1,7 +1,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-
+#include <visual.h>
 #include "waitingRoom.h"
 
 static void printHelp() {
@@ -12,6 +12,7 @@ static void printHelp() {
         << "  d         show the doctors and what they are doing\n"
         << "  b         draw both B-trees and check their invariants\n"
         << "  s         show statistics\n"
+        << "  v         open the SFML visualization\n"
         << "  h         show this help\n"
         << "  q         quit\n";
 }
@@ -70,6 +71,9 @@ int main(int argc, char* argv[]) {
         else if (cmd == "s") {
             hospital.printStats();
         }
+        else if (cmd == "v") {
+            runVisualization(hospital);
+        }   
         else if (cmd == "h") {
             printHelp();
         }
