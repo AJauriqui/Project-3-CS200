@@ -1,7 +1,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <visual.h>
+#include "visual.h"
 #include "waitingRoom.h"
 
 static void printHelp() {

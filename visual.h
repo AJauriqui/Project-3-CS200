@@ -1,7 +1,7 @@
 #ifndef VISUAL_H
 #define VISUAL_H
 
-#include <SFML/Graphics.hpp>
+#include "SFML/Graphics.hpp"
 #include <string>
 
 struct PatientAnimation {

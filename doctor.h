@@ -18,7 +18,7 @@ public:
 	/*Creates a new doctor with given information, inputs are doctors name, DOB, skill and shift
 	Output is initializing a Doctor object with the values*/
 	Doctor(const std::string& name, const std::string& dob, int skill, int shift)
-		: name(name), dob(dob), skill(skill), shift(shift), currentPatient(nullptr) {}
+		: dob(dob), name(name), skill(skill), shift(shift), currentPatient(nullptr) {}
 	std::string getName() const { return name; }//returns the doctor's name, no input, output is the doctor's name as a string
 	std::string getDOB() const { return dob; }//returns the doctor's date of birth, no input, output is the doctor's date of birth as a string
 	int getSkill() const { return skill; }//returns the doctor's skill level, no input, output is the doctor's skill as an int
