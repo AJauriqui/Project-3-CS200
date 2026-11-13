@@ -18,7 +18,7 @@ else
 endif
 
 TARGET = hospital_sim
-SRC = visual_main.cpp
+SRC = main.cpp visual.cpp
 
 all: $(TARGET)
 
