@@ -1,9 +1,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall
 
-# Detect Operating System and set SFML include/library paths accordingly
 ifeq ($(shell uname), Darwin)
-    # macOS: Check Homebrew paths (Apple Silicon vs Intel)
     ifeq ($(shell test -d /opt/homebrew && echo yes), yes)
         CXXFLAGS += -I/opt/homebrew/include
         LDFLAGS = -L/opt/homebrew/lib -lsfml-graphics -lsfml-window -lsfml-system
@@ -12,18 +10,29 @@ ifeq ($(shell uname), Darwin)
         LDFLAGS = -L/usr/local/lib -lsfml-graphics -lsfml-window -lsfml-system
     endif
 else
-    # Linux (common for grading servers or Ubuntu/Debian setups)
     CXXFLAGS += -I/usr/include
     LDFLAGS = -lsfml-graphics -lsfml-window -lsfml-system
 endif
 
 TARGET = hospital_sim
-SRC = main.cpp visual.cpp
+SRCS = main.cpp visual.cpp
 
+# Default target when you just type 'make'
 all: $(TARGET)
 
-$(TARGET): $(SRC)
-	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET) $(LDFLAGS)
+$(TARGET): $(SRCS)
+	$(CXX) $(CXXFLAGS) $(SRCS) -o $(TARGET) $(LDFLAGS)
 
+# Aliases for running the program
+run: $(TARGET)
+	./$(TARGET)
+
+start: $(TARGET)
+	./$(TARGET)
+
+# Clean up build artifacts
 clean:
 	rm -f $(TARGET)
+
+# Declare non-file targets
+.PHONY: all run start clean

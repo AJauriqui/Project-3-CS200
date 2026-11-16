@@ -6,9 +6,19 @@
 #include "waitingRoom.h"
 #include "visual.h"
 
-void runVisualization(Hospital& hospital) {
+sf::Color getPatientColor(Patient* p) {
+    if (!p) return sf::Color(59, 130, 246);
+    if (p->getIsCritical()) {
+        return sf::Color(239, 68, 68);
+    } else if (p->getCondition() >= 7) {
+        return sf::Color(249, 115, 22);
+    } else {
+        return sf::Color(59, 130, 246);
+    }
+}
 
-    sf::RenderWindow window(sf::VideoMode({1200, 800}), "Hospital Waiting Room Simulation");
+void runVisualization(Hospital& hospital) {
+    sf::RenderWindow window(sf::VideoMode({1200, 800}), "Hospital Waiting Room Simulation (Visual Mode)");
     window.setFramerateLimit(60);
 
     sf::Font font;
@@ -22,31 +32,33 @@ void runVisualization(Hospital& hospital) {
     sf::Clock clock;
     sf::Time elapsedTime = sf::Time::Zero;
 
-    std::vector<bool> prevDoctorBusy(4, false);
+    std::vector<Patient*> prevAssignedPatients(4, nullptr);
     std::vector<PatientAnimation> activeAnimations;
 
     while (window.isOpen()) {
-        while (auto event = window.pollEvent()) {
-            if (event->is<sf::Event::Closed>())
+        while (const std::optional event = window.pollEvent()) {
+            if (event->is<sf::Event::Closed>()) {
                 window.close();
-
-            if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
-                if (keyPressed->code == sf::Keyboard::Key::Escape) {
-                    window.close();
+            }
+            else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
+                if (keyPressed->code == sf::Keyboard::Key::Escape || keyPressed->code == sf::Keyboard::Key::Q) {
+                    window.close(); // Pressing ESC or Q will now instantly close the window
                 }
                 else if (keyPressed->code == sf::Keyboard::Key::Space || keyPressed->code == sf::Keyboard::Key::T) {
-                    hospital.tick();
+                    if (!autoRun) hospital.tick(); // Prevent manual ticks while auto-run is active
                 }
                 else if (keyPressed->code == sf::Keyboard::Key::R) {
-                    autoRun = !autoRun;
+                    autoRun = !autoRun; // Toggle auto-run on/off safely
+                    clock.restart();
+                    elapsedTime = sf::Time::Zero;
                 }
             }
-
-            if (const auto* mousePressed = event->getIf<sf::Event::MouseButtonPressed>();
-                mousePressed && mousePressed->button == sf::Mouse::Button::Left) {
-                sf::Vector2f mousePos(mousePressed->position);
-                if (mousePos.x >= 950 && mousePos.x <= 1160 && mousePos.y >= 25 && mousePos.y <= 65) {
-                    hospital.tick();
+            else if (const auto* mousePressed = event->getIf<sf::Event::MouseButtonPressed>()) {
+                if (mousePressed->button == sf::Mouse::Button::Left) {
+                    sf::Vector2f mousePos(mousePressed->position.x, mousePressed->position.y);
+                    if (mousePos.x >= 950 && mousePos.x <= 1160 && mousePos.y >= 25 && mousePos.y <= 65) {
+                        if (!autoRun) hospital.tick();
+                    }
                 }
             }
         }
@@ -54,7 +66,7 @@ void runVisualization(Hospital& hospital) {
         if (autoRun) {
             sf::Time elapsed = clock.restart();
             elapsedTime += elapsed;
-            if (elapsedTime >= sf::seconds(1.0f)) {
+            if (elapsedTime >= sf::seconds(1.0f)) { // 1 second per hour in auto-run
                 hospital.tick();
                 elapsedTime = sf::Time::Zero;
             }
@@ -67,20 +79,20 @@ void runVisualization(Hospital& hospital) {
         titleText.setCharacterSize(22);
         titleText.setFillColor(sf::Color(30, 41, 59));
         titleText.setStyle(sf::Text::Bold);
-        titleText.setString("Hospital Simulation Dashboard");
-        titleText.setPosition({40, 20});
+        titleText.setString("Hospital Simulation Dashboard (Visual Mode)");
+        titleText.setPosition({40.f, 20.f});
         window.draw(titleText);
 
         sf::Text subText(font);
         subText.setCharacterSize(13);
         subText.setFillColor(sf::Color(100, 116, 139));
-        subText.setString("[SPACE] Step Hour  |  [R] Auto-Run (1h/sec)  |  [ESC] Quit");
-        subText.setPosition({40, 48});
+        subText.setString("[SPACE] Step Hour  |  [R] Toggle Auto-Run  |  [Q / ESC] Return to Console");
+        subText.setPosition({40.f, 48.f});
         window.draw(subText);
 
         // --- CLOCK & ADVANCE BUTTON ---
-        sf::RectangleShape btnBox(sf::Vector2f(210, 40));
-        btnBox.setPosition({950, 25});
+        sf::RectangleShape btnBox(sf::Vector2f(210.f, 40.f));
+        btnBox.setPosition({950.f, 25.f});
         btnBox.setFillColor(sf::Color(37, 99, 235));
         window.draw(btnBox);
 
@@ -89,11 +101,11 @@ void runVisualization(Hospital& hospital) {
         btnText.setFillColor(sf::Color::White);
         btnText.setStyle(sf::Text::Bold);
         btnText.setString("Advance Hour (+1hr)");
-        btnText.setPosition({965, 36});
+        btnText.setPosition({965.f, 36.f});
         window.draw(btnText);
 
-        sf::RectangleShape clockBox(sf::Vector2f(210, 40));
-        clockBox.setPosition({950, 75});
+        sf::RectangleShape clockBox(sf::Vector2f(210.f, 40.f));
+        clockBox.setPosition({950.f, 75.f});
         clockBox.setFillColor(sf::Color::White);
         clockBox.setOutlineColor(sf::Color(203, 213, 225));
         clockBox.setOutlineThickness(1.f);
@@ -106,13 +118,14 @@ void runVisualization(Hospital& hospital) {
         int currentHour = hospital.getHour();
         int day = (currentHour / 24) + 1;
         int hrOfDay = currentHour % 24;
-        clockText.setString("Day " + std::to_string(day) + " - " + (hrOfDay < 10 ? "0" : "") + std::to_string(hrOfDay) + ":00 hrs");
-        clockText.setPosition({965, 86});
+        int currentShift = Hospital::shiftAt(currentHour);
+        clockText.setString("Day " + std::to_string(day) + " - " + (hrOfDay < 10 ? "0" : "") + std::to_string(hrOfDay) + ":00 (Shift " + std::to_string(currentShift) + ") " + (autoRun ? "[AUTO]" : ""));
+        clockText.setPosition({960.f, 86.f});
         window.draw(clockText);
 
         // --- LEFT HALF: WAITING ROOM ---
-        sf::RectangleShape waitingBox(sf::Vector2f(560, 640));
-        waitingBox.setPosition({40, 130});
+        sf::RectangleShape waitingBox(sf::Vector2f(560.f, 640.f));
+        waitingBox.setPosition({40.f, 130.f});
         waitingBox.setFillColor(sf::Color::White);
         waitingBox.setOutlineColor(sf::Color(203, 213, 225));
         waitingBox.setOutlineThickness(2.f);
@@ -123,10 +136,9 @@ void runVisualization(Hospital& hospital) {
         waitingHeader.setFillColor(sf::Color(15, 23, 42));
         waitingHeader.setStyle(sf::Text::Bold);
         waitingHeader.setString("Waiting Room");
-        waitingHeader.setPosition({60, 145});
+        waitingHeader.setPosition({60.f, 145.f});
         window.draw(waitingHeader);
 
-        // Using hospital's waitingRoom tree converted to vector via available methods
         std::vector<Patient*> waitingPatients = hospital.getWaitingPatients();
         float startX = 70.f;
         float startY = 195.f;
@@ -138,13 +150,7 @@ void runVisualization(Hospital& hospital) {
 
             sf::CircleShape node(20.f);
             node.setPosition({startX + xOff, startY + yOff});
-            if (p->getIsCritical()) {
-                node.setFillColor(sf::Color(239, 68, 68));
-            } else if (p->getCondition() >= 7) {
-                node.setFillColor(sf::Color(249, 115, 22));
-            } else {
-                node.setFillColor(sf::Color(59, 130, 246));
-            }
+            node.setFillColor(getPatientColor(p));
             node.setOutlineColor(sf::Color::Black);
             node.setOutlineThickness(1.f);
             window.draw(node);
@@ -153,7 +159,7 @@ void runVisualization(Hospital& hospital) {
             lbl.setCharacterSize(10);
             lbl.setFillColor(sf::Color::Black);
             lbl.setString(p->getName() + "\nC:" + std::to_string(p->getCondition()));
-            lbl.setPosition({startX + xOff - 5, startY + yOff + 42});
+            lbl.setPosition({startX + xOff - 5.f, startY + yOff + 42.f});
             window.draw(lbl);
 
             xOff += 90.f;
@@ -164,7 +170,14 @@ void runVisualization(Hospital& hospital) {
         }
 
         // --- RIGHT HALF: 4 DOCTOR OFFICES ---
-        std::vector<Doctor*> doctorsList = hospital.getAllDoctors();
+        std::vector<Doctor*> allDocs = hospital.getAllDoctors();
+        std::vector<Doctor*> activeShiftDocs;
+        for (auto* doc : allDocs) {
+            if (doc->getShift() == currentShift) {
+                activeShiftDocs.push_back(doc);
+            }
+        }
+
         float officeX = 620.f;
         float officeY = 130.f;
         float officeHeight = 152.f;
@@ -178,36 +191,37 @@ void runVisualization(Hospital& hospital) {
             officeBox.setOutlineThickness(2.f);
             window.draw(officeBox);
 
-            if (i < doctorsList.size()) {
-                Doctor* doc = doctorsList[i];
+            if (i < activeShiftDocs.size()) {
+                Doctor* doc = activeShiftDocs[i];
                 bool isBusy = !doc->isAvailable();
+                Patient* currentPat = isBusy ? doc->getPatient() : nullptr;
 
-                if (isBusy && !prevDoctorBusy[i]) {
+                if (currentPat != prevAssignedPatients[i] && currentPat != nullptr) {
                     PatientAnimation anim;
-                    anim.patientName = doc->getPatient()->getName();
+                    anim.patientName = currentPat->getName();
                     anim.startPos = sf::Vector2f(300.f, 400.f);
-                    anim.targetPos = sf::Vector2f(officeX + 400.f, officeY + 70.f);
+                    anim.targetPos = sf::Vector2f(officeX + 110.f, officeY + 90.f);
                     anim.currentPos = anim.startPos;
                     anim.progress = 0.f;
                     anim.active = true;
                     activeAnimations.push_back(anim);
                 }
-                prevDoctorBusy[i] = isBusy;
+                prevAssignedPatients[i] = currentPat;
 
                 sf::Text docTxt(font);
                 docTxt.setCharacterSize(13);
                 docTxt.setFillColor(sf::Color::Black);
-                std::string pName = isBusy ? doc->getPatient()->getName() : "None";
-                int pCond = isBusy ? doc->getPatient()->getCondition() : 0;
+                std::string pName = isBusy ? currentPat->getName() : "None";
+                int pCond = isBusy ? currentPat->getCondition() : 0;
                 
-                docTxt.setString("Doctor " + std::to_string(i+1) + ": Dr. " + doc->getName() + 
+                docTxt.setString("Office " + std::to_string(i+1) + ": Dr. " + doc->getName() + 
                                  "  (Skill: " + std::to_string(doc->getSkill()) + ", Shift: " + std::to_string(doc->getShift()) + ")\n" +
                                  "Status: " + (isBusy ? "Busy with Patient -> " + pName + " (Cond: " + std::to_string(pCond) + ")" : "Available"));
-                docTxt.setPosition({officeX + 20, officeY + 20});
+                docTxt.setPosition({officeX + 20.f, officeY + 20.f});
                 window.draw(docTxt);
 
                 sf::CircleShape docSprite(16.f);
-                docSprite.setPosition({officeX + 40, officeY + 90});
+                docSprite.setPosition({officeX + 40.f, officeY + 90.f});
                 docSprite.setFillColor(sf::Color(16, 185, 129));
                 window.draw(docSprite);
 
@@ -215,28 +229,38 @@ void runVisualization(Hospital& hospital) {
                 dLbl.setCharacterSize(10);
                 dLbl.setFillColor(sf::Color::Black);
                 dLbl.setString("Dr." + doc->getName());
-                dLbl.setPosition({officeX + 25, officeY + 128});
+                dLbl.setPosition({officeX + 25.f, officeY + 128.f});
                 window.draw(dLbl);
 
-                if (isBusy) {
+                bool isCurrentlyAnimating = false;
+                for (const auto& anim : activeAnimations) {
+                    if (anim.patientName == pName && anim.active) {
+                        isCurrentlyAnimating = true;
+                        break;
+                    }
+                }
+
+                if (isBusy && !isCurrentlyAnimating) {
                     sf::CircleShape patSprite(16.f);
-                    patSprite.setPosition({officeX + 110, officeY + 90});
-                    patSprite.setFillColor(sf::Color(59, 130, 246));
+                    patSprite.setPosition({officeX + 110.f, officeY + 90.f});
+                    patSprite.setFillColor(getPatientColor(currentPat));
+                    patSprite.setOutlineColor(sf::Color::Black);
+                    patSprite.setOutlineThickness(1.f);
                     window.draw(patSprite);
 
                     sf::Text pLbl(font);
                     pLbl.setCharacterSize(10);
                     pLbl.setFillColor(sf::Color::Black);
-                    pLbl.setString(pName);
-                    pLbl.setPosition({officeX + 100, officeY + 128});
+                    pLbl.setString(pName + "\n(C:" + std::to_string(pCond) + ")");
+                    pLbl.setPosition({officeX + 95.f, officeY + 128.f});
                     window.draw(pLbl);
                 }
             } else {
                 sf::Text emptyTxt(font);
                 emptyTxt.setCharacterSize(14);
                 emptyTxt.setFillColor(sf::Color(148, 163, 184));
-                emptyTxt.setString("Doctor Office " + std::to_string(i+1) + " (Unassigned)");
-                emptyTxt.setPosition({officeX + 20, officeY + 20});
+                emptyTxt.setString("Doctor Office " + std::to_string(i+1) + " (No Doctor on Shift)");
+                emptyTxt.setPosition({officeX + 20.f, officeY + 20.f});
                 window.draw(emptyTxt);
             }
 
@@ -253,16 +277,26 @@ void runVisualization(Hospital& hospital) {
             it->currentPos.x = it->startPos.x + (it->targetPos.x - it->startPos.x) * it->progress;
             it->currentPos.y = it->startPos.y + (it->targetPos.y - it->startPos.y) * it->progress;
 
+            sf::Color movingColor(59, 130, 246);
+            for (auto* doc : allDocs) {
+                if (!doc->isAvailable() && doc->getPatient()->getName() == it->patientName) {
+                    movingColor = getPatientColor(doc->getPatient());
+                    break;
+                }
+            }
+
             sf::CircleShape movingNode(16.f);
             movingNode.setPosition(it->currentPos);
-            movingNode.setFillColor(sf::Color(234, 179, 8));
+            movingNode.setFillColor(movingColor);
+            movingNode.setOutlineColor(sf::Color::Black);
+            movingNode.setOutlineThickness(1.f);
             window.draw(movingNode);
 
             sf::Text moveLbl(font);
             moveLbl.setCharacterSize(11);
             moveLbl.setFillColor(sf::Color::Black);
             moveLbl.setString(it->patientName);
-            moveLbl.setPosition({it->currentPos.x - 5, it->currentPos.y - 20});
+            moveLbl.setPosition({it->currentPos.x - 5.f, it->currentPos.y - 20.f});
             window.draw(moveLbl);
 
             if (!it->active) {
@@ -274,5 +308,4 @@ void runVisualization(Hospital& hospital) {
 
         window.display();
     }
-
 }
