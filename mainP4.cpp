@@ -2,7 +2,8 @@
 #include <sstream>
 #include <string>
 #include "visual.h"
-#include "waitingRoom.h"
+#include "waitingRoomP4.h"
+#include "patientSearchHistory.h"
 
 static void printHelp() {
     std::cout << "\nCommands:\n"
@@ -12,6 +13,8 @@ static void printHelp() {
         << "  d         show the doctors and what they are doing\n"
         << "  b         draw both B-trees and check their invariants\n"
         << "  s         show statistics\n"
+        << "  p <DOB>   search for a patient by date of birth\n"
+        << "  r         show the patient search history\n"
         << "  v         open the SFML visualization\n"
         << "  h         show this help\n"
         << "  q         quit\n";
@@ -23,6 +26,7 @@ int main(int argc, char* argv[]) {
     unsigned seed = (argc > 3) ? (unsigned)std::stoul(argv[3]) : std::random_device()();
 
     Hospital hospital(seed);
+    PatientSearchHistory searchHistory;
 
     if (!hospital.loadPatients(patientsPath)) {
         std::cerr << "Could not read patients from '" << patientsPath
@@ -70,6 +74,26 @@ int main(int argc, char* argv[]) {
         }
         else if (cmd == "s") {
             hospital.printStats();
+        }
+        else if (cmd == "p") {
+            std::string dob;
+            if (!(in >> dob)) {
+                std::cout << "Usage: p <date of birth>\n";
+                continue;
+            }
+            Patient* patient = hospital.searchPatient(dob);
+            if (patient!= nullptr) {
+                std::cout << "Found patient: " << patient->getName() << " (DOB: " << patient->getBirthday() << ")\n";
+                //add search to stack
+                searchHistory.pushSearch(patient->getName() + " (DOB: " + patient->getBirthday() + ")"
+                );
+            }
+            else {
+                std::cout << "Patient not found: " << dob << "\n";          
+            }
+        }
+        else if (cmd == "r") {
+            searchHistory.printHistory();
         }
         else if (cmd == "v") {
             runVisualization(hospital);

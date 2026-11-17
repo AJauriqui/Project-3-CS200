@@ -55,6 +55,14 @@ public:
 	explicit Hospital(unsigned seed = std::random_device()()) : waitingRoom(DEGREE), doctors(DEGREE), drawIndex(0), lastAdmitIndex((size_t)-1), rng(seed), hour(0), dischargeCount(0), totalWaitTime(0), started(0), totalArrivals(0) {}
 
 	int getHour() const { return hour; }
+	/*Searches all admitted patients for a matching DOB, 
+	Input is patients date of birth, output is a pointer to the matching patient, or nullptr if not found*/
+	Patient* searchPatient(const std::string& dob) const{
+		for (const auto& patient : allPatients) {
+			if (patient->getBirthday() == dob) return patient.get();
+		}
+		return nullptr;
+	}
 
 	// Used by the SFML front end
 	std::vector<Patient*> getWaitingPatients() const { return waitingRoom.toVector(); }
