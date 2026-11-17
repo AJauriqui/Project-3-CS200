@@ -148,6 +148,7 @@ private:
             return leafDepth == depth;                                    // all leaves at same depth
         }
         if ((int)x->children.size() != n + 1) return false;
+        // Check each child against the key range set by its neighboring separators.
         for (int i = 0; i <= n; ++i) {
             const T* childLo = (i == 0) ? lo : &x->keys[i - 1];
             const T* childHi = (i == n) ? hi : &x->keys[i];

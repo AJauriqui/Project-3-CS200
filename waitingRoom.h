@@ -34,6 +34,7 @@ private:
 	BTree<Patient*, PatientPrio> waitingRoom;
 	BTree<Doctor*, DoctorPrio> doctors;
 
+	// These vectors own the objects; the B-trees only store pointers to them.
 	std::vector<std::unique_ptr<Patient>> allPatients;
 	std::vector<std::unique_ptr<Doctor>> allDoctors;
 
@@ -61,6 +62,7 @@ public:
 	std::vector<Doctor*> getAllDoctors() const { return doctors.toVector(); }
 
 	static int shiftAt(int h) {
+		// Repeat shifts 1, 2, and 3 every 24 hours.
 		return ((h % (SHIFT_LENGTH * SHIFTS_PER_DAY)) / SHIFT_LENGTH) + 1;
 	}
 
@@ -69,6 +71,7 @@ public:
 		if (!in) return false;
 		std::string line;
 		std::getline(in, line); // skip header
+		// Store patient records for later admission into the simulation.
 		while (std::getline(in, line)) {
 			std::vector<std::string> f = split(line);
 			if (f.size() < 4) continue;
@@ -79,6 +82,7 @@ public:
 				d.dob = f[2];
 				d.condition = std::stoi(f[3]);
 				if (d.condition < 1) d.condition = 1;
+				// Keep the condition within the range supported by Patient.
 				if (d.condition > Patient::WORST_CONDITION) d.condition = Patient::WORST_CONDITION;
 				patientPool.push_back(d);
 			}
@@ -102,6 +106,7 @@ public:
 				int shift = std::stoi(f[3]);
 				if (shift < 1 || shift > SHIFTS_PER_DAY || skill < 1) continue;
 				allDoctors.push_back(std::unique_ptr<Doctor>(new Doctor(f[0], f[1], skill, shift)));
+				// Add the doctor to the priority tree using the owned object's address.
 				doctors.insert(allDoctors.back().get());
 			}
 			catch (...) {
@@ -113,12 +118,14 @@ public:
 
 	void init() {
 		std::cout << "Midnight: Hospital opens. Admitting initial " << INITIAL_PATIENTS << " patients\n";
+		// The initial patients arrive at hour zero.
 		for (int i = 0; i < INITIAL_PATIENTS; ++i) {
 			admit(0);
 		}
 	}
 
 	void tick() {
+		// Advance treatment, assign waiting patients, update conditions, and admit new arrivals.
 		++hour;
 		const int currentShift = shiftAt(hour);
 
@@ -133,6 +140,7 @@ public:
 			if (p->getCondition() <= 0) {
 				p->setDischargeTime(hour);
 				doc->released();
+				// The doctor can be assigned another patient on a later tick.
 				++dischargeCount;
 			}
 		}
@@ -145,12 +153,14 @@ public:
 			if (!waitingRoom.popFirst(p)) break;
 			doc->takePatient(p, hour);
 			++started;
+			// Count waiting time when treatment begins.
 			totalWaitTime += (hour - p->getArrivalTime());
 		}
 
 		// 3. Everyone still waiting gets worse. Conditions change, so the tree is rebuilt to re-sort it.
 		std::vector<Patient*> w = waitingRoom.toVector();
 		waitingRoom.clear();
+		// Reinsert patients because their updated conditions may change their priority.
 		for (size_t i = 0; i < w.size(); ++i) {
 			w[i]->updateCondition(hour);
 			waitingRoom.insert(w[i]);
@@ -173,6 +183,7 @@ private:
 	}
 
 	void admit(int arrivalHour) {
+		// Shuffle the patient pool again when the current draw order is exhausted.
 		if (drawIndex >= drawOrder.size()) {
 			drawOrder.resize(patientPool.size());
 			for (size_t i = 0; i < patientPool.size(); ++i) drawOrder[i] = i;
@@ -188,6 +199,7 @@ private:
 		lastAdmitIndex = drawOrder[drawIndex++];
 		const PatientData& d = patientPool[lastAdmitIndex];
 		allPatients.push_back(std::unique_ptr<Patient>(new Patient(d.name, d.dob, d.age, d.condition, arrivalHour, CRITICAL_WAIT)));
+		// Keep the new patient alive while the waiting tree stores its pointer.
 		Patient* p = allPatients.back().get();
 		waitingRoom.insert(p);
 		++totalArrivals;
@@ -198,6 +210,7 @@ private:
 		std::stringstream ss(line);
 		std::string field;
 		while (std::getline(ss, field, ',')) {
+			// Remove surrounding spaces so parsed values are clean.
 			size_t a = field.find_first_not_of(" \t\r\n");
 			size_t b = field.find_last_not_of(" \t\r\n");
 			out.push_back((a == std::string::npos) ? "" : field.substr(a, b - a + 1));

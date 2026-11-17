@@ -7,6 +7,7 @@
 #include "visual.h"
 
 sf::Color getPatientColor(Patient* p) {
+    // Use a different color for patients with more serious conditions.
     if (!p) return sf::Color(59, 130, 246);
     if (p->getIsCritical()) {
         return sf::Color(239, 68, 68);
@@ -18,10 +19,12 @@ sf::Color getPatientColor(Patient* p) {
 }
 
 void runVisualization(Hospital& hospital) {
+    // Draw the simulation and handle user input until the window closes.
     sf::RenderWindow window(sf::VideoMode({1200, 800}), "Hospital Waiting Room Simulation (Visual Mode)");
     window.setFramerateLimit(60);
 
     sf::Font font;
+    // Try another system font if the first one is unavailable.
     if (!font.openFromFile("/System/Library/Fonts/Supplemental/Arial.ttf")) {
         if (!font.openFromFile("/System/Library/Fonts/Helvetica.ttc")) {
             std::cerr << "Warning: Could not load system font.\n";
@@ -49,6 +52,7 @@ void runVisualization(Hospital& hospital) {
                 }
                 else if (keyPressed->code == sf::Keyboard::Key::R) {
                     autoRun = !autoRun; // Toggle auto-run on/off safely
+                    // Start a fresh interval so time spent paused is not counted.
                     clock.restart();
                     elapsedTime = sf::Time::Zero;
                 }
@@ -56,6 +60,7 @@ void runVisualization(Hospital& hospital) {
             else if (const auto* mousePressed = event->getIf<sf::Event::MouseButtonPressed>()) {
                 if (mousePressed->button == sf::Mouse::Button::Left) {
                     sf::Vector2f mousePos(mousePressed->position.x, mousePressed->position.y);
+                    // This rectangle matches the advance-hour button's position and size.
                     if (mousePos.x >= 950 && mousePos.x <= 1160 && mousePos.y >= 25 && mousePos.y <= 65) {
                         if (!autoRun) hospital.tick();
                     }
@@ -116,6 +121,7 @@ void runVisualization(Hospital& hospital) {
         clockText.setFillColor(sf::Color(15, 23, 42));
         clockText.setStyle(sf::Text::Bold);
         int currentHour = hospital.getHour();
+        // Convert the total elapsed hours into the displayed day and hour.
         int day = (currentHour / 24) + 1;
         int hrOfDay = currentHour % 24;
         int currentShift = Hospital::shiftAt(currentHour);
@@ -140,6 +146,7 @@ void runVisualization(Hospital& hospital) {
         window.draw(waitingHeader);
 
         std::vector<Patient*> waitingPatients = hospital.getWaitingPatients();
+        // Place waiting patients in rows inside the waiting room panel.
         float startX = 70.f;
         float startY = 195.f;
         float xOff = 0.f;
@@ -164,6 +171,7 @@ void runVisualization(Hospital& hospital) {
 
             xOff += 90.f;
             if (xOff >= 450.f) {
+                // Reset the column and move down to the next row.
                 xOff = 0.f;
                 yOff += 80.f;
             }
@@ -172,6 +180,7 @@ void runVisualization(Hospital& hospital) {
         // --- RIGHT HALF: 4 DOCTOR OFFICES ---
         std::vector<Doctor*> allDocs = hospital.getAllDoctors();
         std::vector<Doctor*> activeShiftDocs;
+        // Only show doctors assigned to the current shift.
         for (auto* doc : allDocs) {
             if (doc->getShift() == currentShift) {
                 activeShiftDocs.push_back(doc);
@@ -197,6 +206,7 @@ void runVisualization(Hospital& hospital) {
                 Patient* currentPat = isBusy ? doc->getPatient() : nullptr;
 
                 if (currentPat != prevAssignedPatients[i] && currentPat != nullptr) {
+                    // Start an animation when a doctor receives a new patient.
                     PatientAnimation anim;
                     anim.patientName = currentPat->getName();
                     anim.startPos = sf::Vector2f(300.f, 400.f);
@@ -206,6 +216,7 @@ void runVisualization(Hospital& hospital) {
                     anim.active = true;
                     activeAnimations.push_back(anim);
                 }
+                // Remember the assignment so the animation only starts for a new patient.
                 prevAssignedPatients[i] = currentPat;
 
                 sf::Text docTxt(font);
@@ -233,6 +244,7 @@ void runVisualization(Hospital& hospital) {
                 window.draw(dLbl);
 
                 bool isCurrentlyAnimating = false;
+                // Avoid drawing a second patient sprite while its moving sprite is visible.
                 for (const auto& anim : activeAnimations) {
                     if (anim.patientName == pName && anim.active) {
                         isCurrentlyAnimating = true;
@@ -268,16 +280,19 @@ void runVisualization(Hospital& hospital) {
         }
 
         // --- ANIMATIONS ---
+        // Move newly assigned patients toward their doctor's office.
         for (auto it = activeAnimations.begin(); it != activeAnimations.end(); ) {
             it->progress += 0.05f;
             if (it->progress >= 1.0f) {
                 it->progress = 1.0f;
                 it->active = false;
             }
+            // Move the patient a little farther toward the office each frame.
             it->currentPos.x = it->startPos.x + (it->targetPos.x - it->startPos.x) * it->progress;
             it->currentPos.y = it->startPos.y + (it->targetPos.y - it->startPos.y) * it->progress;
 
             sf::Color movingColor(59, 130, 246);
+            // Find the assigned patient to keep the moving sprite's color up to date.
             for (auto* doc : allDocs) {
                 if (!doc->isAvailable() && doc->getPatient()->getName() == it->patientName) {
                     movingColor = getPatientColor(doc->getPatient());
@@ -300,6 +315,7 @@ void runVisualization(Hospital& hospital) {
             window.draw(moveLbl);
 
             if (!it->active) {
+                // erase returns the next valid iterator after removing this animation.
                 it = activeAnimations.erase(it);
             } else {
                 ++it;
