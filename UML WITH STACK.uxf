@@ -1,0 +1,158 @@
+<diagram program="umletino" version="15.1"><zoom_level>7</zoom_level><element><id>UMLClass</id><coordinates><x>651</x><y>203</y><w>217</w><h>175</h></coordinates><panel_attributes>*Doctor*
+--
+-dob: string
+-name: string
+-skill: int
+-shift: int
+-currentPatient: Patient*
+--
++Doctor(name: string, dob: string, skill: int, shift: int)
++getName(): string
++getDOB(): string
++getSkill(): int
++getShift(): int
++getPatient(): Patient*
++isAvailable(): bool
++takePatient(patient: Patient*, hour: int): void
++hourOfTreatment(): void
++released(): Patient*
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>126</x><y>0</y><w>378</w><h>322</h></coordinates><panel_attributes>*Patient*
+--
++WORST_CONDITION: int = 10 {static, const}
+-name: string
+-birthday: string
+-age: int
+-condition: int
+-arrivalTime: int
+-criticalTime: int
+-treatmentTime: int
+-startTime: int
+-dischargeTime: int
+-isCritical: bool
+--
++Patient(name: string, birthday: string, age: int, condition: int, arrivalTime: int, criticalTime: int)
++getName(): string
++getBirthday(): string
++getAge(): int
++getCondition(): int
++getArrivalTime(): int
++getCriticalTime(): int
++getTreatmentTime(): int
++getStartTime(): int
++getDischargeTime(): int
++getIsCritical(): bool
++setCondition(c: int): void
++setTreatmentTime(h: int): void
++setStartTime(h: int): void
++setDischargeTime(h: int): void
++setIsCritical(critical: bool): void
++updateCondition(currentTime: int): bool</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>231</x><y>497</y><w>217</w><h>63</h></coordinates><panel_attributes>&lt;&lt;struct&gt;&gt;
+*DoctorPrio*
+--
+
+--
++operator()(x: const Doctor*, y: const Doctor*): bool</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>91</x><y>966</y><w>322</w><h>91</h></coordinates><panel_attributes>&lt;&lt;struct&gt;&gt;
+*BTree::Node*
+--
++leaf: bool
++keys: vector&lt;T&gt;
++children: vector&lt;Node*&gt;
+--
++Node(isLeaf: bool)</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>588</x><y>462</y><w>308</w><h>378</h></coordinates><panel_attributes>*Hospital*
+--
++INITIAL_PATIENTS: int = 8 {static, const}
++ADMISSIONS_PER_HOUR: int = 2 {static, const}
++SHIFT_LENGTH: int = 8 {static, const}
++SHIFTS_PER_DAY: int = 3 {static, const}
++DEGREE: int = 3 {static, const}
++CRITICAL_WAIT: int = 5 {static, const}
+-waitingRoom: BTree&lt;Patient*, PatientPrio&gt;
+-doctors: BTree&lt;Doctor*, DoctorPrio&gt;
+-allPatients: vector&lt;unique_ptr&lt;Patient&gt;&gt;
+-allDoctors: vector&lt;unique_ptr&lt;Doctor&gt;&gt;
+-patientPool: vector&lt;PatientData&gt;
+-drawOrder: vector&lt;size_t&gt;
+-drawIndex: size_t
+-lastAdmitIndex: size_t
+-rng: mt19937
+-hour: int
+-dischargeCount: int
+-totalWaitTime: long
+-started: int
+-totalArrivals: int
+--
++Hospital(seed: unsigned)
++getHour(): int
++searchPatient(dob: string): Patient*
++getWaitingPatients(): vector&lt;Patient*&gt;
++getAllDoctors(): vector&lt;Doctor*&gt;
++shiftAt(h: int): int {static}
++loadPatients(path: string): bool
++loadDoctors(path: string): bool
++init(): void
++tick(): void
+-busyDoctorCount(): int
+-admit(arrivalHour: int): void
+-split(line: string): vector&lt;string&gt; {static}</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>441</x><y>910</y><w>308</w><h>77</h></coordinates><panel_attributes>&lt;&lt;struct&gt;&gt;
+*PatientData*
+--
++name: string
++dob: string
++age: int
++condition: int
+--
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>623</x><y>1106</y><w>322</w><h>98</h></coordinates><panel_attributes>&lt;&lt;struct&gt;&gt;
+*PatientAnimation*
+--
++patientName: string
++startPos: sf::Vector2f
++targetPos: sf::Vector2f
++currentPos: sf::Vector2f
++progress: float
++active: bool
+--
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>623</x><y>1015</y><w>322</w><h>56</h></coordinates><panel_attributes>&lt;&lt;file&gt;&gt;
+*visual.h*
+--
+
+--
++runVisualization(hospital: Hospital&amp;): void</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>476</x><y>315</y><w>203</w><h>161</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-</panel_attributes><additional_attributes>270;210;10;10</additional_attributes></element><element><id>UMLClass</id><coordinates><x>91</x><y>630</y><w>322</w><h>287</h></coordinates><panel_attributes>&lt;&lt;template&gt;&gt; T, Compare
+*BTree&lt;T, Compare&gt;*
+--
+-root: Node*
+-t: int
+-count: size_t
+-comp: Compare
+--
++BTree(degree: int, c: Compare = Compare())
++~BTree()
++insert(value: const T&amp;): void
++popFirst(out: T&amp;): bool
++toVector(): vector&lt;T&gt;
++clear(): void
++size(): size_t
++empty(): bool
++height(): int
++print(os: ostream&amp;, label: Label): void
++checkInvariants(): bool
+-splitChild(x: Node*, i: int): void
+-insertNonFull(x: Node*, value: const T&amp;): void
+-fillFirstChild(x: Node*): void
+-removeFirst(x: Node*): T
+-collect(x: const Node*, out: vector&lt;T&gt;&amp;): void
+-destroy(x: Node*): void
+-printNode(os: ostream&amp;, x: const Node*, depth: int, label: Label): void
+-check(x: const Node*, depth: int, leafDepth: int&amp;, isRoot: bool, lo: const T*, hi: const T*, seen: size_t&amp;): bool</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>735</x><y>371</y><w>49</w><h>105</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-</panel_attributes><additional_attributes>50;130;10;10</additional_attributes></element><element><id>Relation</id><coordinates><x>497</x><y>252</y><w>168</w><h>28</h></coordinates><panel_attributes>lt=-
+</panel_attributes><additional_attributes>10;20;220;20</additional_attributes></element><element><id>Relation</id><coordinates><x>406</x><y>623</y><w>196</w><h>35</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-</panel_attributes><additional_attributes>260;10;10;30</additional_attributes></element><element><id>Relation</id><coordinates><x>252</x><y>910</y><w>21</w><h>70</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-</panel_attributes><additional_attributes>10;10;10;80</additional_attributes></element><element><id>Relation</id><coordinates><x>588</x><y>896</y><w>28</w><h>28</h></coordinates><panel_attributes>lt=-
+</panel_attributes><additional_attributes>20;20;10;20</additional_attributes></element><element><id>UMLClass</id><coordinates><x>105</x><y>392</y><w>217</w><h>63</h></coordinates><panel_attributes>&lt;&lt;struct&gt;&gt;
+*PatientPrio*
+--
+
+--
++operator()(x: const Patient*, y: const Patient*): bool</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>203</x><y>448</y><w>21</w><h>196</h></coordinates><panel_attributes>lt=&lt;.</panel_attributes><additional_attributes>10;10;10;260</additional_attributes></element><element><id>Relation</id><coordinates><x>329</x><y>553</y><w>21</w><h>91</h></coordinates><panel_attributes>lt=&lt;.</panel_attributes><additional_attributes>10;10;10;110</additional_attributes></element><element><id>Relation</id><coordinates><x>406</x><y>266</y><w>259</w><h>245</h></coordinates><panel_attributes>lt=&lt;&lt;.</panel_attributes><additional_attributes>350;10;10;330</additional_attributes></element><element><id>Relation</id><coordinates><x>210</x><y>315</y><w>49</w><h>91</h></coordinates><panel_attributes>lt=&lt;&lt;.</panel_attributes><additional_attributes>50;10;10;110</additional_attributes></element><element><id>Relation</id><coordinates><x>588</x><y>833</y><w>161</w><h>91</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-</panel_attributes><additional_attributes>210;10;10;110</additional_attributes></element><element><id>Relation</id><coordinates><x>798</x><y>833</y><w>21</w><h>196</h></coordinates><panel_attributes>lt=&lt;&lt;.</panel_attributes><additional_attributes>10;10;10;260</additional_attributes></element><element><id>UMLClass</id><coordinates><x>665</x><y>77</y><w>217</w><h>63</h></coordinates><panel_attributes>PatientSearchHistory
+--
+-history: stack&lt;string&gt;
+--
++pushSearch(patientInfo: string): void
++patientHistory(): void
+</panel_attributes><additional_attributes></additional_attributes></element></diagram>
