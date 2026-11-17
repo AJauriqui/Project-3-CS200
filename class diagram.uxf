@@ -1,0 +1,68 @@
+<diagram program="umletino" version="15.1"><zoom_level>10</zoom_level><element><id>UMLClass</id><coordinates><x>40</x><y>50</y><w>310</w><h>260</h></coordinates><panel_attributes>*Doctor*
+--
+-dob: string
+-name: string
+-skill: int
+-shift: int
+-currentPatient: Patient*
+--
++Doctor(name: string, dob: string, skill: int, shift: int)
++getName(): string
++getDoB(): string
++getSkill(): int
++getShift(): int
++getPatient(): Patient*
++isAvailable(): bool
++takePatient(patient: Patient*, hour: int) : void
++hourOfTreatment(): void
++released(): Patient*
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>370</x><y>50</y><w>540</w><h>460</h></coordinates><panel_attributes>*Patient*
+--
++WORST_CONDITION: int = 10 {static, const}
+-name: string
+-birthday: string
+-age: int
+-condition: int
+-arrivalTime: int
+-criticalTime: int
+-treatmentTime: int
+-startTime:int
+-dischargeTime: int
+-isCritical: bool
+--
++Patient(name: string, birthday: string, age: int, condition: int, arrivalTime: int, criticalTime: int)
++getName(): string
++getBirthday(): string
++getAge(): int
++getCondition(): int
++getArrivalTime(): int
++getCriticalTime(): int
++getTreatmentTime(): int
++getStartTime(): int
++getDischargeTime(): int
++getIsCritical(): bool
++setCondition(c: int): void
++setTreatmentTime(h: int): void
++setStartTime(h: int): void
++setDischargeTime(h: int): void
++setIsCritical(critical: bool): void
++updateCondition(currentTime: int): bool</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>40</x><y>330</y><w>310</w><h>90</h></coordinates><panel_attributes>&lt;&lt;struct&gt;&gt;
+*PatientPrio*
+--
+
+--
++operator()(x: const Patient*, y: const Patient*): bool</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>40</x><y>430</y><w>310</w><h>90</h></coordinates><panel_attributes>&lt;&lt;struct&gt;&gt;
+*DoctorPrio*
+--
+
+--
++operator()(x: const Doctor*, y: const Doctor*): bool</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>40</x><y>540</y><w>310</w><h>140</h></coordinates><panel_attributes>&lt;&lt;template&gt;&gt; T
+*BTreeNode&lt;T&gt;*
+--
++n: int
++leaf: bool
++keys: string*
++records: T*
++children:BTreeNode&lt;T&gt;**
+--
++BTreeNode(t: int, isLeaf: bool)</panel_attributes><additional_attributes></additional_attributes></element></diagram>
